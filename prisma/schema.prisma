@@ -6,10 +6,13 @@ datasource db {
   provider = "postgresql"
 }
 
+// Enums
 enum WorkOrderStatus {
-  PENDING
+  PLANNED
   IN_PROGRESS
+  ON_HOLD
   COMPLETED
+  CANCELLED
 }
 
 enum DefectSeverity {
@@ -21,49 +24,115 @@ enum DefectSeverity {
 
 enum DefectDisposition {
   OPEN
-  RESOLVED
+  REWORK
+  SCRAP
+  USE_AS_IS
   PENDING_REVIEW
 }
 
 enum AuditAction {
   CREATE
   UPDATE
+  DELETE
 }
 
+// Main Models
 model WorkOrder {
-  id        String   @id @default(cuid())
-  status    WorkOrderStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String           @id @default(cuid())
+  partNumber      String
+  serialNumber    String?          // Important for manufacturing
+  quantity        Int              @default(1)
+  status          WorkOrderStatus  @default(PLANNED)
+  dueDate         DateTime?
+  assignedTo      String?          // Technician name or ID
+  currentStep     String?
+  notes           String?
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  defects   Defect[]
-  auditLogs AuditLog[]
+  defects         Defect[]
+  auditLogs       AuditLog[]
+  effectivities   WorkOrderEffectivity[]
 }
 
 model Defect {
-  id          String   @id @default(cuid())
-  workOrderId String
-  severity    DefectSeverity
-  disposition DefectDisposition @default(OPEN)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String              @id @default(cuid())
+  workOrderId     String
+  defectType      String              // e.g. "print_failure", "material_defect"
+  severity        DefectSeverity
+  disposition     DefectDisposition   @default(OPEN)
+  description     String?
+  photoUrl        String?             // For defect photos
 
-  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  workOrder       WorkOrder           @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
   @@index([workOrderId])
+  @@index([severity])
   @@index([disposition])
+}
+model EngineeringChange {
+  id              String    @id @default(cuid())
+  title           String
+  description     String
+  status          String    @default("draft")
+  approvedBy      String?
+  approvedAt      DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  effectivities   Effectivity[]
+  auditLogs       AuditLog[] @relation("EngineeringChangeAuditLogs")
+
+  @@map("engineering_changes")
+}
+
+
+model Effectivity {
+  id                    String   @id @default(cuid())
+  engineeringChangeId   String
+  serialNumberFrom      String?
+  serialNumberTo        String?
+  batchId               String?
+  effectiveDate         DateTime?
+
+  createdAt             DateTime @default(now())
+
+  engineeringChange     EngineeringChange @relation(fields: [engineeringChangeId], references: [id])
+  workOrders            WorkOrderEffectivity[]
+}
+
+model WorkOrderEffectivity {
+  id                    String   @id @default(cuid())
+  workOrderId           String
+  effectivityId         String
+
+  workOrder             WorkOrder     @relation(fields: [workOrderId], references: [id])
+  effectivity           Effectivity   @relation(fields: [effectivityId], references: [id])
+
+  @@unique([workOrderId, effectivityId])
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  action      AuditAction
-  entityType  String
-  entityId    String
-  timestamp   DateTime @default(now())
-  changes     Json?
-  workOrderId String?
+  id            String      @id @default(cuid())
+  action        AuditAction
+  entityType    String      // "WorkOrder", "Defect", "EngineeringChange", etc.
+  entityId      String
+  changedBy     String?
+  beforeState   Json?
+  afterState    Json?
+  timestamp     DateTime    @default(now())
 
-  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+  // Relations
+  workOrderId           String?
+  engineeringChangeId   String?
+
+  workOrder         WorkOrder?          @relation(fields: [workOrderId], references: [id])
+  engineeringChange EngineeringChange?  @relation("EngineeringChangeAuditLogs", fields: [engineeringChangeId], references: [id])
 
   @@index([entityType, entityId])
 }
