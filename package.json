@@ -1,0 +1,23 @@
+{
+  "name": "solarisecho",
+  "version": "1.0.0",
+  "description": "Full stack application utilizing Prisma, PostgreSQL, AWS, Node.js, React.js, Typescript.js, and Edge computing techniques",
+  "main": "index.js",
+  "dependencies": {
+    "@prisma/client": "^7.0.0",
+    "prisma": "^7.0.0",
+    "typescript": "^5.9.3",
+    "undici-types": "^6.21.0"
+  },
+  "scripts": {
+    "prisma": "prisma",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:db:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

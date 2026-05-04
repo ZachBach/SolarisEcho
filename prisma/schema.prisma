@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum DefectSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum DefectDisposition {
+  OPEN
+  RESOLVED
+  PENDING_REVIEW
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+}
+
+model WorkOrder {
+  id        String   @id @default(cuid())
+  status    WorkOrderStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  defects   Defect[]
+  auditLogs AuditLog[]
+}
+
+model Defect {
+  id          String   @id @default(cuid())
+  workOrderId String
+  severity    DefectSeverity
+  disposition DefectDisposition @default(OPEN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@index([disposition])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      AuditAction
+  entityType  String
+  entityId    String
+  timestamp   DateTime @default(now())
+  changes     Json?
+  workOrderId String?
+
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([entityType, entityId])
+}
